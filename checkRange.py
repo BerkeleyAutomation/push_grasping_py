@@ -5,7 +5,7 @@ DONT_USE_OFFSET = False
 
 def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConvexVertex,useSlip,supportRange):
     checkedRanges = CheckedRanges()
-    overlapBndPts = np.zeros([4,0])
+    overlapBndPts = np.zeros([0,4]) #check for right orientation
     
     if ((self.name == 'unknown_shape_sample798') &&  segments[0].edge == 2):
         #warning('break here')
@@ -51,10 +51,11 @@ def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConve
         #first, check if there's an area of the edge where the gripper doesn't
         #overlap anything
         if rangeWidth > gripperWidthGamma+1e-6:
-            overlapRightBound = leftBound + dirSign * gripperWidthGamma
+            overlapRightBound = leftBound + dirSign * gripperWidthGamma #incorrect - need different add operation
             overlapRightBoundDist = leftDist + (rightDist - leftDist) * (overlapRightBound - leftBound)/ (rightBound-leftBound)
             #on-edge process
             
+            np.concatenate((sortedBnds,sortInd),axis=1)
             
     
 def unique(array_list):
