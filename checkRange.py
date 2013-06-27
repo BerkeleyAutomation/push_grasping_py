@@ -11,7 +11,7 @@ def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConve
         #warning('break here')
     segments.append(Segment(segments[len(segments)-1)].bnd[2] + array([0,gripperWidthGamma]),array([0,0]),array([NaN]),array([0]))
     
-    rangeBndPts = unique([elem.bnd for elem in segments])
+    rangeBndPts = np.unique([elem.bnd for elem in segments])
     rangeBndPts = np.zeros(len(segments),2)
     i = 0
     while i < len(segments):
@@ -30,7 +30,7 @@ def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConve
         
         frictionSuccess = rangeFrictionSuccess[i]
         
-        rangeWidth = abs_array(rangeBndPts(i+1) - rangeBndPts(i))
+        rangeWidth = np.absolute(rangeBndPts(i+1) - rangeBndPts(i))
         #how is i+1 going to stay within range?
         
         if rangeBndPtsDist[i][0] > rangeBndPtsDist[i][1]:
@@ -54,35 +54,59 @@ def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConve
             overlapRightBound = leftBound + dirSign * gripperWidthGamma #incorrect - need different add operation
             overlapRightBoundDist = leftDist + (rightDist - leftDist) * (overlapRightBound - leftBound)/ (rightBound-leftBound)
             #on-edge process
+            sortedBnds = np.sort(np.concatenate((sortedBnds,sortInd),axis=1))
+            sortInd = np.argsort(np.concatenate((sortedBnds,sortInd),axis=1))
+            if flip:
+                bndsForDist = sortedBnds - dirSign * gripperWidthGamma
+            else:
+                bndsForDist = sortedBnds
+            dists = leftDist + (rightDist - leftDist) * (bndsForDist - leftBound) / (rightBound - leftBound)
             
-            np.concatenate((sortedBnds,sortInd),axis=1)
+            checkedRanges = array([checkedRanges,checkEdgeContact(sortedBnds,distd,frictionDuccess,edgeIndex,flip)])
+            #TODO: slip-stick
+        else:
+            overlapRightBound = rightBound
+            overlapRightBoundDist = rightDist
+        
+        furthestLeftGamma = leftBound - dirSign * gripperWidthGamma
+        furthestRightOverlapGamma = overlapRightBound - dirSign * gripperWidthGamma
+        overlapBndPts = np.zeros([0,4]) #check orientation
+        
+        overlapRangeToCheck = np.arange(rangeIndex-2,0,-1) #check matlab/numpy range correlation
+        
+        #find boundary points that the gripper overlaps when it's at the left vertex on
+        #the edge that are higher than any boundary points to their right
+        maxDist = -inf
+        i = 0
+        while i < len(overlapRangeToCheck):
+            rangeLeft = rangeBndPts[overlapRangeInd+left]
+            rangeRight =  rangeBndPts[overlapRangeInd+right]
+            rangeLeftRightDist = rangeBndPtsDist[overlapRangeInd][left+1]
+            rangeRightDist = rangeBndPtsDist[overlapRangeInd][right+1]
             
-    
-def unique(array_list):
-    if len(array_list) <= 1:
-        return array_list
-    i = 0;
-    new_list = array_list
-    while i < len(array_list)-1:
-        if(array_equal(array_list[i],array_list[i+1])):
-            new_list.remove(array_list[i])
-        i += 1
-    return new_list
+            if rangeLeftDist >= rangeRightDist:
+                if rangeLeft - furthestLeftGamma < 0
+                furthestLeftInRange = furthestLeftGamma;
+                furthestLeftDistInRange = rangeLeftDist + (rangeRightDist-rangeLeftDist) * (furthestLeftGamma-rangeLeft) / (rangeRight-rangeLeft)
+            else:
+                furthestLeftInRange = rangeLeft
+                furthestLeftDistInRange = rangeLeftDist
+            if furthestLeftDistInRange >= maxDist && furthestLeftDistInRange > leftDist
+                maxDist = furthestLeftDistInRange
+                overlapBndPts[end+1] = np.concatenate((overlapRangeInd,left,furthestLeftInRange,furthestLeftDistInRange), axis =1) #CHECK AXIS!
+            else:
+                if rangeRightDist >= maxDist && rangeRightDist > leftDist
+                    maxDist = rangeRightDist;
+                    overlapBndPts(end+1,:) = [overlapRangeInd,right,rangeRight,rangeRightDist];
+            end
+        end
+        
+        if (rangeLeft-furthestLeftGamma)*dirSign <= 0
+            break;
+        end
+	end
+            i += 1
 
-def abs_array(array):
-    if len(array.shape) == 1:
-        i = 0
-        while i < len(array):
-            array[i] = abs(array[i])
-            i += 1
-    elif len(array.shape) == 2:
-        i = 0
-        while i < len(array):
-            j = 0
-            while j < len(array[i]):
-                array[i][j] = abs(array[i][j])
-                j += 1
-            i += 1
 
 class CheckedRanges:
     def __init__():
