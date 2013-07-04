@@ -54,8 +54,8 @@ def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConve
             overlapRightBound = leftBound + dirSign * gripperWidthGamma #incorrect - need different add operation
             overlapRightBoundDist = leftDist + (rightDist - leftDist) * (overlapRightBound - leftBound)/ (rightBound-leftBound)
             #on-edge process
-            sortedBnds = np.sort(np.concatenate((sortedBnds,sortInd),axis=1))
-            sortInd = np.argsort(np.concatenate((sortedBnds,sortInd),axis=1))
+            sortedBnds = np.sort(np.concatenate((overlapRightBound,rightBound),axis=1))
+            sortInd = np.argsort(np.concatenate((overlapRightBound,rightBound),axis=1))
             if flip:
                 bndsForDist = sortedBnds - dirSign * gripperWidthGamma
             else:
@@ -93,13 +93,14 @@ def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConve
                 furthestLeftDistInRange = rangeLeftDist
             if furthestLeftDistInRange >= maxDist && furthestLeftDistInRange > leftDist
                 maxDist = furthestLeftDistInRange
-                overlapBndPts[end+1] = np.concatenate((overlapRangeInd,left,furthestLeftInRange,furthestLeftDistInRange), axis =1) #CHECK AXIS!
+                #make sure you should be doing "append" for end + 1
+                np.append(overlapBndPts,np.concatenate((overlapRangeInd,left,furthestLeftInRange,furthestLeftDistInRange), axis =1)) #CHECK AXIS!
             else:
                 if rangeRightDist >= maxDist and rangeRightDist > leftDist
                     maxDist = rangeRightDist;
                     overlapBndPts[end+1] = [overlapRangeInd,right,rangeRight,rangeRightDist]; #Check array set
         
-        if (rangeLeft-furthestLeftGamma)*dirSign <= 0
+        if (rangeLeft-furthestLeftGamma)*dirSign <= 0:
             break;
             
             i += 1
@@ -108,50 +109,89 @@ def checkRange(self,segments,unitWidth,gripperWidthGamma,gripperOpening,useConve
 		#if last side is right and second-to-last is left and they are adjacent,
 		#and the distances are the same, take off the last one.
 		end = len(overlapBndPts)
-		if np.diff(array([a[0] for a in overlapBandPts[end-2:end]]) == -1 and
+		if np.diff(array([a[0] for a in overlapBandPts[end-2:end]])) == -1 and
 				overlapBndPts[end-1][1]==right and overlapBndPts[end-2][1]==left
-				and np.diff(array([a[3] for a in overlapBndPts[end-2:end])) == 0: #check that last one...
+				and np.diff(array([a[3] for a in overlapBndPts[end-2:end]))) == 0: #check that last one...
 			overlapBndPts[end-1] = [];
 
-    clear rangeLeft rangeRight rangeLeftDist rangeRightDist;
+    clear rangeLeft
+    clear rangeRight
+    clear rangeLeftDist
+    clear rangeRightDist;
     
-    numOverlapBndPts = size(overlapBndPts,1);
+    numOverlapBndPts = overlapBndPts.shape;
     
-    if numOverlapBndPts == 0
-        if flip
-            checkedRanges(end+1) = checkConvexVertex([leftBound,overlapRightBound],...
-                leftDist,rangeIndex,left);
-        else
-            [sortedBnds,sortInd] = sort([leftBound,overlapRightBound]);
-            dists = [leftDist,overlapRightBoundDist];
+    if numOverlapBndPts == 0:
+        if flip:
+            np.append(checkedRanges,checkConvexVertex(np.concatenate(leftBound,overlapRightBound), leftDist,rangeIndex,left));
+        else:
+            sortedBnds = np.sort(np.concatenate((leftBound,overlapRightBound),axis=1))
+            sortInd = np.argsort(np.concatenate((leftBound,overlapRightBound),axis=1))
+            dists = np.concatenate(leftDist,overlapRightBoundDist);
             
-            checkedRanges = [checkedRanges checkEdgeContact(sortedBnds,dists(sortInd),frictionSuccess,edgeIndex,DONT_USE_OFFSET)];
-        end
-        %TODO: slip-stick (check at phiMax for obstructions)
-    else
-        %if the gripper sticks out beyond all the ranges
-        furthestLeftOverlapRangeIndex = overlapBndPts(end,1);
-        furthestLeftOverlapRangeSide = overlapBndPts(end,2);
-        furthestLeftOverlapBnd = overlapBndPts(end,3);
-        furthestLeftOverlapBndDist = overlapBndPts(end,4);
-        if (furthestLeftGamma-furthestLeftOverlapBnd)*dirSign < 0
-            %the right boundary is either the left edge of the first range,
-            %or the furthest right that the left edge of the gripper ever
-            %gets
-			%leftEdgeOfFirstRange = rangeBndPts(furthestLeftOverlapRangeIndex+left);
-            %furthestLeftRightBnd = dirSign*min(dirSign*[leftEdgeOfFirstRange,furthestRightOverlapGamma]);
-            furthestLeftRightBnd = dirSign*min(dirSign*[furthestLeftOverlapBnd,furthestRightOverlapGamma]);
-			%TODO: handles vertex closure right?
-            checkedRanges = [checkedRanges checkGapRange(furthestLeftGamma,furthestLeftRightBnd,furthestLeftOverlapBndDist,furthestLeftOverlapRangeIndex,furthestLeftOverlapRangeSide)];
-		else
-			furthestLeftRightBnd = furthestLeftOverlapBnd;
-		end
+            checkedRanges = array([checkedRanges,checkEdgeContact(sortedBnds,dists[sortInd],frictionSuccess,edgeIndex,DONT_USE_OFFSET)]);
+        #TODO: slip-stick (check at phiMax for obstructions)
+    else:
+        #if the gripper sticks out beyond all the ranges
+        furthestLeftOverlapRangeIndex = overlapBndPts[overlapBndPts.shape-1][0];
+        furthestLeftOverlapRangeSide = overlapBndPts[overlapBndPts.shape-1][1];
+        furthestLeftOverlapBnd = overlapBndPts[overlapBndPts.shape-1][2];
+        furthestLeftOverlapBndDist = overlapBndPts[overlapBndPts.shape-1][3];
+        if (furthestLeftGamma-furthestLeftOverlapBnd)*dirSign < 0:
+            #the right boundary is either the left edge of the first range,
+            #or the furthest right that the left edge of the gripper ever
+            #gets
+			#leftEdgeOfFirstRange = rangeBndPts(furthestLeftOverlapRangeIndex+left);
+            #furthestLeftRightBnd = dirSign*min(dirSign*[leftEdgeOfFirstRange,furthestRightOverlapGamma]);
+            furthestLeftRightBnd = dirSign*min(dirSign*np.concatenate(furthestLeftOverlapBnd,furthestRightOverlapGamma)); #check matrix multiplication
+			#TODO: handles vertex closure right?
+            checkedRanges = np.array([checkedRanges,checkGapRange(furthestLeftGamma,furthestLeftRightBnd,furthestLeftOverlapBndDist,furthestLeftOverlapRangeIndex,furthestLeftOverlapRangeSide)]);
+		else:
+		    furthestLeftRightBnd = furthestLeftOverlapBnd;
         
-        %if all the ranges have been covered, don't bother going through
-        %them
-        if (furthestRightOverlapGamma-furthestLeftOverlapBnd)*dirSign < 0
+        #if all the ranges have been covered, don't bother going through
+        #them
+        if (furthestRightOverlapGamma-furthestLeftOverlapBnd)*dirSign < 0:
             continue;
-        end
+        
+         #for overlapInd=numOverlapBndPts:-1:2
+         #Check when you need to end loop (put at 1 for now)
+         i = numOverlapBndPts-1
+         while i > 1:  
+            overlapRangeIndex = overlapBndPts[i][0];
+            overlapRangeSide = overlapBndPts(overlapInd,2);
+            prevOverlapRangeIndex = overlapBndPts(overlapInd-1,1);
+            prevOverlapRangeSide = overlapBndPts(overlapInd-1,2);
+            
+            bndPt = overlapBndPts(overlapInd,3);%rangeBndPts(overlapRangeIndex+overlapRangeSide);
+            bndDist = overlapBndPts(overlapInd,4);%rangeBndPtsDist(overlapRangeIndex,1+overlapRangeSide);
+            prevBndPt = overlapBndPts(overlapInd-1,3);
+            prevBndDist = overlapBndPts(overlapInd-1,4);%rangeBndPtsDist(prevOverlapRangeIndex,1+prevOverlapRangeSide);
+            
+            overlapRangeLeft = rangeBndPts(overlapRangeIndex+left);
+            overlapRangeLeftDist = rangeBndPtsDist(overlapRangeIndex,1+left);
+            overlapRangeRight = rangeBndPts(overlapRangeIndex+right);
+            overlapRangeRightDist = rangeBndPtsDist(overlapRangeIndex,1+right);
+			
+			if overlapInd==numOverlapBndPts...
+					&& overlapRangeSide==right...
+					&& overlapRangeRight == furthestLeftRightBnd
+				%warning('break here');
+			end
+            
+            overlapRangeRightmostApplicableBnd = prevBndPt;
+            
+            bndPtOnEdge = bndPt + dirSign * gripperWidthGamma;
+            %if the bndPtOnEdge is outside of the actual edge range,
+            %truncate it
+            if (bndPtOnEdge - leftBound)*dirSign < 0
+                bndPtOnEdge = leftBound;
+            elseif (rightBound - bndPtOnEdge)*dirSign < 0
+                bndPtOnEdge = rightBound;
+            end
+            bndPtEdgeDist = max(leftDist,leftDist + ...
+                ((bndPtOnEdge - leftBound)/rangeWidth) * (rightDist-leftDist));
+            i--;
 
 
 class CheckedRanges:
